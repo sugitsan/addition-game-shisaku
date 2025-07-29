@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>足し算ゲーム</title>
+  <style>
+    body {
+      text-align: center;
+      font-size: 2em;
+      font-family: sans-serif;
+      background-color: #f0f8ff;
+    }
+    #question {
+      margin-top: 50px;
+      font-size: 3em;
+    }
+    .choice {
+      display: inline-block;
+      margin: 10px;
+      padding: 20px 40px;
+      font-size: 1.5em;
+      background-color: #fff;
+      border: 2px solid #333;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 30px;
+      font-size: 2em;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="question">1 + 2 = ?</div>
+
+  <div id="choices">
+    <!-- 選択肢のボタンがここに入る -->
+  </div>
+
+  <div id="result"></div>
+
+  <script>
+    let correctAnswer = 0;
+
+    function generateQuestion() {
+      const a = Math.floor(Math.random() * 9) + 1;
+      const b = Math.floor(Math.random() * 9) + 1;
+      correctAnswer = a + b;
+      document.getElementById("question").textContent = `${a} + ${b} = ?`;
+      
+      // 答え候補を作成
+      let choices = new Set();
+      choices.add(correctAnswer);
+      while (choices.size < 4) {
+        const wrong = correctAnswer + Math.floor(Math.random() * 5) - 2;
+        if (wrong > 0) choices.add(wrong);
+      }
+
+      // シャッフルして表示
+      const shuffled = Array.from(choices).sort(() => Math.random() - 0.5);
+      const choiceDiv = document.getElementById("choices");
+      choiceDiv.innerHTML = ""; // クリア
+      shuffled.forEach(choice => {
+        const btn = document.createElement("div");
+        btn.className = "choice";
+        btn.textContent = choice;
+        btn.onclick = () => checkAnswer(choice);
+        choiceDiv.appendChild(btn);
+      });
+
+      document.getElementById("result").textContent = "";
+    }
+
+    function checkAnswer(choice) {
+      const result = document.getElementById("result");
+      if (choice === correctAnswer) {
+        result.textContent = "せいかい！";
+        result.style.color = "green";
+      } else {
+        result.textContent = "ちがうよ";
+        result.style.color = "red";
+      }
+
+      setTimeout(generateQuestion, 2000); // 2秒後に次の問題
+    }
+
+    generateQuestion(); // 最初の問題を出す
+  </script>
+</body>
+</html>
