@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>足し算ゲーム</title>
+  <title>たしざんゲーム</title>
   <style>
     body {
       text-align: center;
@@ -10,10 +10,32 @@
       font-family: sans-serif;
       background-color: #f0f8ff;
     }
+
     #question {
       margin-top: 50px;
       font-size: 3em;
     }
+
+    #dots {
+      margin-top: 10px;
+      margin-bottom: 30px;
+    }
+
+    #dots > div {
+      display: inline-block;
+      vertical-align: top;
+      min-width: 100px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin: 4px;
+      background-color: black;
+      border-radius: 50%;
+    }
+
     .choice {
       display: inline-block;
       margin: 10px;
@@ -24,6 +46,7 @@
       border-radius: 10px;
       cursor: pointer;
     }
+
     #result {
       margin-top: 30px;
       font-size: 2em;
@@ -35,33 +58,48 @@
 
   <div id="question">1 + 2 = ?</div>
 
+  <div id="dots">
+    <div id="dots-a"></div>
+    <div style="width: 20px;">＋</div>
+    <div id="dots-b"></div>
+  </div>
+
   <div id="choices">
-    <!-- 選択肢のボタンがここに入る -->
+    <!-- 選択肢ボタンが表示される -->
   </div>
 
   <div id="result"></div>
 
   <script>
     let correctAnswer = 0;
+    let questionCount = 0;
+    let correctCount = 0;
+    const totalQuestions = 10;
 
     function generateQuestion() {
+      if (questionCount >= totalQuestions) {
+        showFinalResult();
+        return;
+      }
+
       const a = Math.floor(Math.random() * 9) + 1;
       const b = Math.floor(Math.random() * 9) + 1;
       correctAnswer = a + b;
       document.getElementById("question").textContent = `${a} + ${b} = ?`;
-      
-      // 答え候補を作成
+
+      showDots("dots-a", a);
+      showDots("dots-b", b);
+
       let choices = new Set();
       choices.add(correctAnswer);
       while (choices.size < 4) {
         const wrong = correctAnswer + Math.floor(Math.random() * 5) - 2;
-        if (wrong > 0) choices.add(wrong);
+        if (wrong > 0 && wrong <= 18) choices.add(wrong);
       }
 
-      // シャッフルして表示
       const shuffled = Array.from(choices).sort(() => Math.random() - 0.5);
       const choiceDiv = document.getElementById("choices");
-      choiceDiv.innerHTML = ""; // クリア
+      choiceDiv.innerHTML = "";
       shuffled.forEach(choice => {
         const btn = document.createElement("div");
         btn.className = "choice";
@@ -73,20 +111,59 @@
       document.getElementById("result").textContent = "";
     }
 
+    function showDots(id, count) {
+      const container = document.getElementById(id);
+      container.innerHTML = "";
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        container.appendChild(dot);
+      }
+    }
+
     function checkAnswer(choice) {
       const result = document.getElementById("result");
       if (choice === correctAnswer) {
         result.textContent = "せいかい！";
         result.style.color = "green";
+        correctCount++;
       } else {
         result.textContent = "ちがうよ";
         result.style.color = "red";
       }
 
-      setTimeout(generateQuestion, 2000); // 2秒後に次の問題
+      questionCount++;
+      setTimeout(generateQuestion, 2000);
     }
 
-    generateQuestion(); // 最初の問題を出す
+    function showFinalResult() {
+      const result = document.getElementById("result");
+      document.getElementById("question").textContent = "";
+      document.getElementById("dots-a").innerHTML = "";
+      document.getElementById("dots-b").innerHTML = "";
+      document.getElementById("choices").innerHTML = "";
+
+      let message = "";
+
+      if (correctCount <= 5) {
+        message = "つぎも　がんばろう！";
+        result.style.color = "red";
+      } else if (correctCount <= 8) {
+        message = "なかなか　やりますね！";
+        result.style.color = "orange";
+      } else if (correctCount === 9) {
+        message = "おしい、あと１もんでパーフェクト！";
+        result.style.color = "blue";
+      } else {
+        message = "すばらしい！かんぺきです！！";
+        result.style.color = "green";
+      }
+
+      result.innerHTML = `${correctCount}もん せいかい。<br>${message}`;
+    }
+
+    generateQuestion();
   </script>
+
 </body>
 </html>
