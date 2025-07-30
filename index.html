@@ -1,174 +1,181 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>たしざんクイズ</title>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      margin: 30px;
-    }
-    #question {
-      font-size: 60px;
       margin: 20px;
     }
-    #dots {
-      font-size: 40px;
+    .problem {
+      font-size: 72px;
+      margin: 20px;
+    }
+    .dots {
+      font-size: 32px;
       margin: 10px;
       text-align: left;
       white-space: pre-wrap;
     }
-    .btn {
-      font-size: 40px;
-      padding: 20px;
+    button {
+      font-size: 36px;
+      padding: 10px 20px;
       margin: 10px;
       background-color: white;
-      border: 2px solid #ccc;
+      border: 2px solid #000;
       cursor: pointer;
-      width: 150px;
     }
-    .correct {
-      background-color: #a8e6a3 !important;
-    }
-    .incorrect {
-      background-color: #f8c8dc !important;
-    }
-    #result, #feedback, #timer {
-      font-size: 30px;
-      margin-top: 20px;
-    }
-    progress {
+    .progress-container {
       width: 100%;
+      background-color: #eee;
       height: 30px;
+      margin-bottom: 20px;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: lightgreen;
+      width: 0%;
+    }
+    .feedback {
+      font-size: 32px;
+      margin: 20px;
     }
   </style>
 </head>
 <body>
   <h1>たしざんクイズ</h1>
-  <progress id="progressBar" value="0" max="100"></progress>
-  <div id="question"></div>
-  <div id="dots"></div>
+  <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+  <div id="dotsArea" class="dots"></div>
+  <div class="problem" id="problem">1 + 1 = ?</div>
   <div id="buttons"></div>
-  <div id="feedback"></div>
-  <div id="result"></div>
-  <div id="timer"></div>
+  <div class="feedback" id="feedback"></div>
+
+  <audio id="correctSound" src="correct.mp3" preload="auto"></audio>
 
   <script>
-    let currentQuestion = 0;
-    let correctCount = 0;
     const totalQuestions = 10;
+    let currentQuestion = 0;
+    let correctAnswers = 0;
     let startTime = Date.now();
 
+    const problem = document.getElementById('problem');
+    const buttonsDiv = document.getElementById('buttons');
+    const feedback = document.getElementById('feedback');
+    const progressBar = document.getElementById('progressBar');
+    const dotsArea = document.getElementById('dotsArea');
+    const correctSound = document.getElementById('correctSound');
+
     function playCorrectSound() {
-      const sound = new Audio("correct.mp3");
-      sound.play();
+      // 重複再生可能なようにクローンを使う
+      const clone = correctSound.cloneNode();
+      clone.play();
     }
 
-    function generateQuestion() {
-      document.getElementById("feedback").textContent = "";
+    function showProblem() {
       const a = Math.floor(Math.random() * 9) + 1;
       const b = Math.floor(Math.random() * 9) + 1;
       const answer = a + b;
 
-      const question = `${a} ＋ ${b} ＝ ？`;
-      document.getElementById("question").textContent = question;
+      problem.textContent = `${a} + ${b} = ?`;
+      dotsArea.textContent =
+        `${a}こ：${'●'.repeat(a).replace(/(.{5})/g, '$1 ')}\n` +
+        `${b}こ：${'●'.repeat(b).replace(/(.{5})/g, '$1 ')}`;
 
-      // ●の表示（左に数字＋5個ごとにスペース）
-      const dotCount = answer;
-      let dotString = `${dotCount}：`;
-      for (let i = 1; i <= dotCount; i++) {
-        dotString += "●";
-        if (i % 5 === 0 && i !== dotCount) dotString += " ";
-      }
-      document.getElementById("dots").textContent = dotString;
-
-      // 選択肢の生成（正解を含めたランダムな4択）
-      const choices = new Set();
-      choices.add(answer);
-      while (choices.size < 4) {
-        const n = answer + Math.floor(Math.random() * 7) - 3;
-        if (n > 0) choices.add(n);
+      const answers = new Set();
+      answers.add(answer);
+      while (answers.size < 4) {
+        const fake = answer + Math.floor(Math.random() * 5) - 2;
+        if (fake > 0) answers.add(fake);
       }
 
-      const buttonsDiv = document.getElementById("buttons");
-      buttonsDiv.innerHTML = "";
+      const shuffled = Array.from(answers).sort(() => Math.random() - 0.5);
 
-      Array.from(choices)
-        .sort(() => Math.random() - 0.5)
-        .forEach(choice => {
-          const btn = document.createElement("button");
-          btn.textContent = choice;
-          btn.className = "btn";
-          btn.onclick = () => handleAnswer(choice, answer, btn);
-          buttonsDiv.appendChild(btn);
-        });
+      buttonsDiv.innerHTML = '';
+      shuffled.forEach(num => {
+        const btn = document.createElement('button');
+        btn.textContent = num;
+        btn.onclick = () => checkAnswer(num, answer, btn);
+        buttonsDiv.appendChild(btn);
+      });
 
-      updateProgress();
+      feedback.textContent = '';
+      updateProgressBar();
     }
 
-    function handleAnswer(choice, answer, button) {
-      const buttons = document.querySelectorAll(".btn");
+    function checkAnswer(selected, correct, selectedButton) {
+      const buttons = document.querySelectorAll('button');
       buttons.forEach(btn => btn.disabled = true);
 
-      if (choice === answer) {
-        correctCount++;
-        button.classList.add("correct");
-        document.getElementById("feedback").textContent = "せいかい！";
+      if (selected === correct) {
+        selectedButton.style.backgroundColor = 'lightgreen';
+        feedback.textContent = 'せいかい！';
         playCorrectSound();
-        setTimeout(nextQuestion, 500);
+        correctAnswers++;
+        setTimeout(() => {
+          currentQuestion++;
+          if (currentQuestion < totalQuestions) {
+            resetButtons();
+            showProblem();
+          } else {
+            showResult();
+          }
+        }, 500);
       } else {
-        button.classList.add("incorrect");
-        document.getElementById("feedback").textContent = `ざんねん、せいかいは ${answer} です。`;
+        selectedButton.style.backgroundColor = 'pink';
         buttons.forEach(btn => {
-          if (parseInt(btn.textContent) === answer) {
-            btn.classList.add("correct");
+          if (parseInt(btn.textContent) === correct) {
+            btn.style.backgroundColor = 'lightgreen';
           }
         });
-        setTimeout(nextQuestion, 3000);
+        feedback.textContent = `ざんねん、せいかいは ${correct} です。`;
+        setTimeout(() => {
+          currentQuestion++;
+          if (currentQuestion < totalQuestions) {
+            resetButtons();
+            showProblem();
+          } else {
+            showResult();
+          }
+        }, 3000);
       }
     }
 
-    function updateProgress() {
-      const progressBar = document.getElementById("progressBar");
-      progressBar.value = (currentQuestion / totalQuestions) * 100;
+    function resetButtons() {
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.style.backgroundColor = 'white';
+      });
     }
 
-    function nextQuestion() {
-      currentQuestion++;
-      if (currentQuestion < totalQuestions) {
-        generateQuestion();
-      } else {
-        showResult();
-      }
+    function updateProgressBar() {
+      const percent = (currentQuestion / totalQuestions) * 100;
+      progressBar.style.width = `${percent}%`;
     }
 
     function showResult() {
-      document.getElementById("question").textContent = "";
-      document.getElementById("dots").textContent = "";
-      document.getElementById("buttons").innerHTML = "";
-      document.getElementById("feedback").textContent = "";
-
-      let message = "";
-      if (correctCount <= 5) {
-        message = "つぎも　がんばろう！";
-      } else if (correctCount <= 8) {
-        message = "なかなか　やりますね！";
-      } else if (correctCount === 9) {
-        message = "おしい、あと１もんでパーフェクト！";
+      const timeTaken = Math.round((Date.now() - startTime) / 1000);
+      problem.textContent = '';
+      buttonsDiv.innerHTML = '';
+      dotsArea.textContent = '';
+      let message = `せいかいすう：${correctAnswers} / ${totalQuestions}`;
+      if (correctAnswers <= 5) {
+        message += '\nつぎも　がんばろう！';
+      } else if (correctAnswers <= 8) {
+        message += '\nなかなか　やりますね！';
+      } else if (correctAnswers === 9) {
+        message += '\nおしい、あと１もんでパーフェクト！';
       } else {
-        message = "すばらしい！かんぺきです！！";
+        message += '\nすばらしい！かんぺきです！！';
       }
-
-      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-
-      document.getElementById("result").innerHTML =
-        `${correctCount}もん せいかい。<br>${message}`;
-      document.getElementById("timer").textContent = `かかったじかん・・・${timeTaken}びょう`;
-      updateProgress(); // 最後に100%へ
+      message += `\nかかったじかん・・・${timeTaken}びょう`;
+      feedback.textContent = message;
+      progressBar.style.width = '100%';
     }
 
-    generateQuestion();
+    showProblem();
   </script>
 </body>
 </html>
