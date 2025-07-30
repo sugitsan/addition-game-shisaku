@@ -70,6 +70,9 @@
 
   <div id="result"></div>
 
+  <!-- ✅ 正解音のオーディオ要素 -->
+  <audio id="correctSound" src="correct.mp3" preload="auto"></audio>
+
   <script>
     let correctAnswer = 0;
     let questionCount = 0;
@@ -127,6 +130,8 @@
         result.textContent = "せいかい！";
         result.style.color = "green";
         correctCount++;
+        // ✅ 正解音を再生
+        document.getElementById("correctSound").play();
       } else {
         result.textContent = "ちがうよ";
         result.style.color = "red";
