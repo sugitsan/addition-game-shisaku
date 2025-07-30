@@ -1,153 +1,108 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>たしざんゲーム</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: "Arial", sans-serif;
       text-align: center;
-      padding: 20px;
-    }
-    #progress {
-      height: 20px;
-      background-color: #eee;
-      margin-bottom: 20px;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    #progress-bar {
-      height: 100%;
-      width: 0%;
-      background-color: lightgreen;
-      transition: width 0.3s;
+      background: #f0f8ff;
     }
     #question {
       font-size: 80px;
-      margin: 30px 0;
+      margin: 20px;
     }
     #dots {
-      margin-bottom: 20px;
       font-size: 30px;
-      line-height: 1.4;
+      line-height: 1.5;
     }
-    .choice {
-      font-size: 80px;
-      margin: 20px;
+    .options {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin: 30px;
+    }
+    .option {
       padding: 20px 40px;
+      font-size: 40px;
+      background-color: white;
+      border: 2px solid #999;
+      border-radius: 10px;
       cursor: pointer;
-      border-radius: 15px;
-      background-color: lightgray;
-      border: none;
-      transition: background-color 0.3s;
     }
     .correct {
-      background-color: lightgreen !important;
+      background-color: #90ee90 !important;
     }
-    .wrong {
-      background-color: pink !important;
+    .incorrect {
+      background-color: #f8c8dc !important;
     }
-    #result {
+    #feedback {
       font-size: 40px;
-      margin-top: 30px;
+      margin-top: 20px;
+      height: 50px;
+    }
+    #progressBar {
+      width: 80%;
+      height: 20px;
+      margin: 20px auto;
+      background-color: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #progress {
+      height: 100%;
+      width: 0%;
+      background-color: #4caf50;
     }
   </style>
 </head>
 <body>
-  <h1>たしざんゲーム</h1>
-  <div id="progress"><div id="progress-bar"></div></div>
-  <div id="question"></div>
-  <div id="dots"></div>
-  <div id="choices"></div>
-  <div id="result"></div>
 
-  <audio id="correctSound" src="pinpon.mp3"></audio>
+<h1>たしざんゲーム</h1>
 
-  <script>
-    let currentQuestion = 0;
-    let score = 0;
-    const totalQuestions = 10;
+<div id="progressBar"><div id="progress"></div></div>
 
-    function generateQuestion() {
-      const a = Math.floor(Math.random() * 9) + 1;
-      const b = Math.floor(Math.random() * 9) + 1;
-      const answer = a + b;
+<div id="question">1＋1＝？</div>
+<div id="dots"></div>
+<div class="options" id="options"></div>
+<div id="feedback"></div>
 
-      document.getElementById('question').innerHTML = `${a}＋${b}＝？`;
+<audio id="correctSound" src="correct.mp3"></audio>
 
-      // 視覚支援の●表示（5個ごとにスペース）
-      const dotsA = "●".repeat(a).replace(/(.{5})/g, "$1 ");
-      const dotsB = "●".repeat(b).replace(/(.{5})/g, "$1 ");
-      document.getElementById('dots').innerHTML = `${dotsA}<br>＋<br>${dotsB}`;
+<script>
+  let currentQuestion = 0;
+  let correctCount = 0;
 
-      // 選択肢の生成
-      const correctIndex = Math.floor(Math.random() * 4);
-      const choicesDiv = document.getElementById('choices');
-      choicesDiv.innerHTML = '';
-
-      for (let i = 0; i < 4; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'choice';
-        let choice;
-        if (i === correctIndex) {
-          choice = answer;
-          btn.dataset.correct = true;
-        } else {
-          do {
-            choice = Math.floor(Math.random() * 17) + 2;
-          } while (choice === answer || [...choicesDiv.children].some(b => b.textContent == choice));
-        }
-        btn.textContent = choice;
-
-        btn.addEventListener('click', () => handleAnswer(btn, answer));
-        choicesDiv.appendChild(btn);
-      }
-
-      // プログレスバー更新
-      document.getElementById('progress-bar').style.width = `${(currentQuestion / totalQuestions) * 100}%`;
+  function generateDots(num) {
+    let dots = '';
+    for (let i = 1; i <= num; i++) {
+      dots += '●';
+      if (i % 5 === 0 && i !== num) dots += ' ';
     }
+    return dots;
+  }
 
-    function handleAnswer(selectedBtn, correctAnswer) {
-      const buttons = document.querySelectorAll('.choice');
-      buttons.forEach(btn => {
-        btn.disabled = true;
-        if (parseInt(btn.textContent) === correctAnswer) {
-          btn.classList.add('correct');
-        } else if (btn === selectedBtn) {
-          btn.classList.add('wrong');
-        }
-      });
+  function nextQuestion() {
+    document.getElementById("feedback").textContent = "";
+    const num1 = Math.floor(Math.random() * 9) + 1;
+    const num2 = Math.floor(Math.random() * 9) + 1;
+    const answer = num1 + num2;
 
-      if (selectedBtn.dataset.correct) {
-        document.getElementById('correctSound').play();
-        score++;
-      }
+    document.getElementById("question").textContent = `${num1}＋${num2}＝？`;
+    document.getElementById("dots").innerHTML = `
+      ${generateDots(num1)}<br>＋<br>${generateDots(num2)}
+    `;
 
-      document.getElementById('question').innerHTML = document.getElementById('question').innerHTML.replace("？", correctAnswer);
-
-      currentQuestion++;
-      setTimeout(() => {
-        if (currentQuestion < totalQuestions) {
-          generateQuestion();
-        } else {
-          showResult();
-        }
-      }, 1200);
+    const options = [];
+    while (options.length < 3) {
+      let wrong = Math.floor(Math.random() * 17) + 2;
+      if (wrong !== answer && !options.includes(wrong)) options.push(wrong);
     }
+    options.splice(Math.floor(Math.random() * 4), 0, answer);
 
-    function showResult() {
-      document.getElementById('question').textContent = '';
-      document.getElementById('dots').innerHTML = '';
-      document.getElementById('choices').innerHTML = '';
-      const msg = score <= 5 ? "つぎも　がんばろう！" :
-                  score <= 8 ? "なかなか　やりますね！" :
-                  score === 9 ? "おしい、あと１もんでパーフェクト！" :
-                  "すばらしい！かんぺきです！！";
-      document.getElementById('result').innerHTML = `${score}もん　せいかい。<br>${msg}`;
-      document.getElementById('progress-bar').style.width = '100%';
-    }
-
-    generateQuestion();
-  </script>
-</body>
-</html>
+    const optionsDiv = document.getElementById("options");
+    optionsDiv.innerHTML = '';
+    options.forEach(num => {
+      const btn = document.createElement("bu
