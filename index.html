@@ -1,181 +1,208 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>たしざんクイズ</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>足し算クイズ</title>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      margin: 20px;
+      margin: 2em;
     }
-    .problem {
-      font-size: 72px;
-      margin: 20px;
+
+    #question {
+      font-size: 2em;
+      margin: 1em 0;
     }
-    .dots {
-      font-size: 32px;
-      margin: 10px;
-      text-align: left;
-      white-space: pre-wrap;
+
+    .choices {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1em;
+      max-width: 300px;
+      margin: 1em auto;
     }
-    button {
-      font-size: 36px;
-      padding: 10px 20px;
-      margin: 10px;
+
+    .choice {
+      padding: 1em;
+      border: 2px solid #444;
       background-color: white;
-      border: 2px solid #000;
+      font-size: 1.5em;
       cursor: pointer;
+      border-radius: 0.5em;
+      transition: background-color 0.3s, color 0.3s;
     }
-    .progress-container {
-      width: 100%;
-      background-color: #eee;
-      height: 30px;
-      margin-bottom: 20px;
-    }
-    .progress-bar {
-      height: 100%;
+
+    .choice.correct {
       background-color: lightgreen;
+      color: black;
+    }
+
+    .choice.wrong {
+      background-color: lightcoral;
+      color: white;
+    }
+
+    #result {
+      margin-top: 2em;
+      font-size: 1.5em;
+    }
+
+    #progress-container {
+      width: 100%;
+      background-color: #ddd;
+      height: 20px;
+      margin-bottom: 1em;
+    }
+
+    #progress-bar {
+      height: 100%;
+      background-color: #4caf50;
       width: 0%;
     }
-    .feedback {
-      font-size: 32px;
-      margin: 20px;
+
+    #dots-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1em;
+    }
+
+    .dots-block {
+      text-align: left;
+      font-size: 2em;
+      white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
-  <h1>たしざんクイズ</h1>
-  <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-  <div id="dotsArea" class="dots"></div>
-  <div class="problem" id="problem">1 + 1 = ?</div>
-  <div id="buttons"></div>
-  <div class="feedback" id="feedback"></div>
+  <h1>足し算クイズ</h1>
 
-  <audio id="correctSound" src="correct.mp3" preload="auto"></audio>
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+
+  <div id="dots-container">
+    <div class="dots-block" id="dots-display"></div>
+  </div>
+
+  <div id="question">問題を読み込み中...</div>
+
+  <div class="choices" id="choices"></div>
+
+  <div id="result"></div>
+
+  <audio id="correct-sound" src="correct.mp3"></audio>
 
   <script>
-    const totalQuestions = 10;
+    const TOTAL_QUESTIONS = 10;
     let currentQuestion = 0;
-    let correctAnswers = 0;
-    let startTime = Date.now();
+    let score = 0;
+    let startTime;
 
-    const problem = document.getElementById('problem');
-    const buttonsDiv = document.getElementById('buttons');
-    const feedback = document.getElementById('feedback');
-    const progressBar = document.getElementById('progressBar');
-    const dotsArea = document.getElementById('dotsArea');
-    const correctSound = document.getElementById('correctSound');
-
-    function playCorrectSound() {
-      // 重複再生可能なようにクローンを使う
-      const clone = correctSound.cloneNode();
+    function playSound(id) {
+      const audio = document.getElementById(id);
+      const clone = audio.cloneNode(); // 複製して重複再生に対応
       clone.play();
     }
 
-    function showProblem() {
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function generateQuestion() {
       const a = Math.floor(Math.random() * 9) + 1;
       const b = Math.floor(Math.random() * 9) + 1;
       const answer = a + b;
 
-      problem.textContent = `${a} + ${b} = ?`;
-      dotsArea.textContent =
-        `${a}こ：${'●'.repeat(a).replace(/(.{5})/g, '$1 ')}\n` +
-        `${b}こ：${'●'.repeat(b).replace(/(.{5})/g, '$1 ')}`;
+      updateDotsDisplay(a, b);
 
-      const answers = new Set();
-      answers.add(answer);
-      while (answers.size < 4) {
-        const fake = answer + Math.floor(Math.random() * 5) - 2;
-        if (fake > 0) answers.add(fake);
-      }
+      const choices = shuffle([
+        answer,
+        answer + 1 + Math.floor(Math.random() * 3),
+        answer - 1 - Math.floor(Math.random() * 2),
+        answer + 2 + Math.floor(Math.random() * 2),
+      ]);
 
-      const shuffled = Array.from(answers).sort(() => Math.random() - 0.5);
+      document.getElementById("question").innerText = `${a} + ${b} = ?`;
 
-      buttonsDiv.innerHTML = '';
-      shuffled.forEach(num => {
-        const btn = document.createElement('button');
-        btn.textContent = num;
-        btn.onclick = () => checkAnswer(num, answer, btn);
-        buttonsDiv.appendChild(btn);
+      const choicesDiv = document.getElementById("choices");
+      choicesDiv.innerHTML = "";
+
+      choices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.className = "choice";
+        btn.innerText = choice;
+        btn.onclick = () => handleAnswer(choice, answer, btn);
+        choicesDiv.appendChild(btn);
       });
 
-      feedback.textContent = '';
       updateProgressBar();
     }
 
-    function checkAnswer(selected, correct, selectedButton) {
-      const buttons = document.querySelectorAll('button');
-      buttons.forEach(btn => btn.disabled = true);
+    function updateDotsDisplay(a, b) {
+      const dotsDisplay = document.getElementById("dots-display");
 
-      if (selected === correct) {
-        selectedButton.style.backgroundColor = 'lightgreen';
-        feedback.textContent = 'せいかい！';
-        playCorrectSound();
-        correctAnswers++;
-        setTimeout(() => {
-          currentQuestion++;
-          if (currentQuestion < totalQuestions) {
-            resetButtons();
-            showProblem();
-          } else {
-            showResult();
-          }
-        }, 500);
-      } else {
-        selectedButton.style.backgroundColor = 'pink';
-        buttons.forEach(btn => {
-          if (parseInt(btn.textContent) === correct) {
-            btn.style.backgroundColor = 'lightgreen';
-          }
-        });
-        feedback.textContent = `ざんねん、せいかいは ${correct} です。`;
-        setTimeout(() => {
-          currentQuestion++;
-          if (currentQuestion < totalQuestions) {
-            resetButtons();
-            showProblem();
-          } else {
-            showResult();
-          }
-        }, 3000);
-      }
+      const makeDots = (n) => {
+        let dots = `${n} `;
+        for (let i = 1; i <= n; i++) {
+          dots += "●";
+          if (i % 5 === 0 && i !== n) dots += " ";
+        }
+        return dots;
+      };
+
+      const aDots = makeDots(a);
+      const bDots = makeDots(b);
+
+      dotsDisplay.innerText = `${aDots}\n${bDots}`;
     }
 
-    function resetButtons() {
-      const buttons = document.querySelectorAll('button');
-      buttons.forEach(btn => {
-        btn.disabled = false;
-        btn.style.backgroundColor = 'white';
-      });
+    function handleAnswer(selected, correct, btn) {
+      const buttons = document.querySelectorAll(".choice");
+      buttons.forEach(b => b.disabled = true);
+
+      if (selected === correct) {
+        btn.classList.add("correct");
+        playSound("correct-sound");
+        score++;
+      } else {
+        btn.classList.add("wrong");
+      }
+
+      setTimeout(() => {
+        currentQuestion++;
+        if (currentQuestion < TOTAL_QUESTIONS) {
+          generateQuestion();
+        } else {
+          showResult();
+        }
+      }, 800);
     }
 
     function updateProgressBar() {
-      const percent = (currentQuestion / totalQuestions) * 100;
-      progressBar.style.width = `${percent}%`;
+      const bar = document.getElementById("progress-bar");
+      bar.style.width = `${(currentQuestion / TOTAL_QUESTIONS) * 100}%`;
     }
 
     function showResult() {
-      const timeTaken = Math.round((Date.now() - startTime) / 1000);
-      problem.textContent = '';
-      buttonsDiv.innerHTML = '';
-      dotsArea.textContent = '';
-      let message = `せいかいすう：${correctAnswers} / ${totalQuestions}`;
-      if (correctAnswers <= 5) {
-        message += '\nつぎも　がんばろう！';
-      } else if (correctAnswers <= 8) {
-        message += '\nなかなか　やりますね！';
-      } else if (correctAnswers === 9) {
-        message += '\nおしい、あと１もんでパーフェクト！';
-      } else {
-        message += '\nすばらしい！かんぺきです！！';
-      }
-      message += `\nかかったじかん・・・${timeTaken}びょう`;
-      feedback.textContent = message;
-      progressBar.style.width = '100%';
+      const endTime = Date.now();
+      const duration = Math.round((endTime - startTime) / 1000);
+      document.getElementById("question").innerText = "終了！";
+      document.getElementById("choices").innerHTML = "";
+      document.getElementById("dots-display").innerText = "";
+      document.getElementById("progress-bar").style.width = "100%";
+      document.getElementById("result").innerHTML = `せいかい：${score} / ${TOTAL_QUESTIONS}<br>かかったじかん・・・${duration}びょう`;
     }
 
-    showProblem();
+    window.onload = () => {
+      startTime = Date.now();
+      generateQuestion();
+    };
   </script>
 </body>
 </html>
