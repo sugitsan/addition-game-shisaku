@@ -8,167 +8,124 @@
       text-align: center;
       font-size: 2em;
       font-family: sans-serif;
-      background-color: #f0f8ff;
     }
-
-    #question {
-      margin-top: 50px;
-      font-size: 3em;
+    .dots {
+      font-size: 1em;
+      color: gray;
     }
-
-    #dots {
-      margin-top: 10px;
-      margin-bottom: 30px;
-    }
-
-    #dots > div {
-      display: inline-block;
-      vertical-align: top;
-      min-width: 100px;
-    }
-
-    .dot {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      margin: 4px;
-      background-color: black;
-      border-radius: 50%;
-    }
-
-    .choice {
-      display: inline-block;
-      margin: 10px;
-      padding: 20px 40px;
+    .choices button {
       font-size: 1.5em;
-      background-color: #fff;
-      border: 2px solid #333;
-      border-radius: 10px;
-      cursor: pointer;
+      margin: 10px;
+      padding: 10px 20px;
     }
-
-    #result {
-      margin-top: 30px;
-      font-size: 2em;
-      color: green;
+    .correct {
+      background-color: lightgreen;
+    }
+    .wrong {
+      background-color: lightcoral;
+    }
+    .highlight {
+      background-color: #ffc0cb; /* 薄いピンク */
     }
   </style>
 </head>
 <body>
-
-  <div id="question">1 + 2 = ?</div>
-
-  <div id="dots">
-    <div id="dots-a"></div>
-    <div style="width: 20px;">＋</div>
-    <div id="dots-b"></div>
+  <h1>たしざんゲーム</h1>
+  <div id="problem">
+    <div id="a"></div>
+    <div class="dots" id="dotsA"></div>
+    <div>＋</div>
+    <div id="b"></div>
+    <div class="dots" id="dotsB"></div>
+    <div>＝<span id="answerPlaceholder">？</span></div>
   </div>
-
-  <div id="choices">
-    <!-- 選択肢ボタンが表示される -->
-  </div>
-
+  <div class="choices" id="choices"></div>
   <div id="result"></div>
-
-  <!-- ✅ 正解音のオーディオ要素 -->
-  <audio id="correctSound" src="correct.mp3" preload="auto"></audio>
 
   <script>
     let correctAnswer = 0;
     let questionCount = 0;
     let correctCount = 0;
-    const totalQuestions = 10;
 
-    function generateQuestion() {
-      if (questionCount >= totalQuestions) {
-        showFinalResult();
-        return;
-      }
+    function getRandomNumber() {
+      return Math.floor(Math.random() * 9) + 1;
+    }
 
-      const a = Math.floor(Math.random() * 9) + 1;
-      const b = Math.floor(Math.random() * 9) + 1;
+    function renderDots(number) {
+      return '●'.repeat(number);
+    }
+
+    function newQuestion() {
+      document.getElementById('result').textContent = "";
+      document.getElementById('answerPlaceholder').textContent = "？";
+
+      const a = getRandomNumber();
+      const b = getRandomNumber();
       correctAnswer = a + b;
-      document.getElementById("question").textContent = `${a} + ${b} = ?`;
 
-      showDots("dots-a", a);
-      showDots("dots-b", b);
+      document.getElementById('a').textContent = a;
+      document.getElementById('b').textContent = b;
+      document.getElementById('dotsA').textContent = renderDots(a);
+      document.getElementById('dotsB').textContent = renderDots(b);
 
-      let choices = new Set();
-      choices.add(correctAnswer);
-      while (choices.size < 4) {
+      const answers = [correctAnswer];
+      while (answers.length < 4) {
         const wrong = correctAnswer + Math.floor(Math.random() * 5) - 2;
-        if (wrong > 0 && wrong <= 18) choices.add(wrong);
+        if (wrong > 0 && !answers.includes(wrong)) {
+          answers.push(wrong);
+        }
       }
 
-      const shuffled = Array.from(choices).sort(() => Math.random() - 0.5);
-      const choiceDiv = document.getElementById("choices");
-      choiceDiv.innerHTML = "";
-      shuffled.forEach(choice => {
-        const btn = document.createElement("div");
-        btn.className = "choice";
-        btn.textContent = choice;
-        btn.onclick = () => checkAnswer(choice);
-        choiceDiv.appendChild(btn);
+      answers.sort(() => Math.random() - 0.5);
+
+      const choices = document.getElementById('choices');
+      choices.innerHTML = "";
+      answers.forEach(ans => {
+        const btn = document.createElement('button');
+        btn.textContent = ans;
+        btn.onclick = () => checkAnswer(ans, btn);
+        choices.appendChild(btn);
       });
-
-      document.getElementById("result").textContent = "";
     }
 
-    function showDots(id, count) {
-      const container = document.getElementById(id);
-      container.innerHTML = "";
-      for (let i = 0; i < count; i++) {
-        const dot = document.createElement("div");
-        dot.className = "dot";
-        container.appendChild(dot);
-      }
-    }
-
-    function checkAnswer(choice) {
-      const result = document.getElementById("result");
-      if (choice === correctAnswer) {
-        result.textContent = "せいかい！";
-        result.style.color = "green";
-        correctCount++;
-        // ✅ 正解音を再生
-        document.getElementById("correctSound").play();
-      } else {
-        result.textContent = "ちがうよ";
-        result.style.color = "red";
-      }
-
+    function checkAnswer(selected, button) {
       questionCount++;
-      setTimeout(generateQuestion, 2000);
-    }
+      const buttons = document.querySelectorAll("#choices button");
+      const correctButton = Array.from(buttons).find(b => Number(b.textContent) === correctAnswer);
 
-    function showFinalResult() {
-      const result = document.getElementById("result");
-      document.getElementById("question").textContent = "";
-      document.getElementById("dots-a").innerHTML = "";
-      document.getElementById("dots-b").innerHTML = "";
-      document.getElementById("choices").innerHTML = "";
-
-      let message = "";
-
-      if (correctCount <= 5) {
-        message = "つぎも　がんばろう！";
-        result.style.color = "red";
-      } else if (correctCount <= 8) {
-        message = "なかなか　やりますね！";
-        result.style.color = "orange";
-      } else if (correctCount === 9) {
-        message = "おしい、あと１もんでパーフェクト！";
-        result.style.color = "blue";
+      if (selected === correctAnswer) {
+        correctCount++;
+        button.classList.add("correct");
       } else {
-        message = "すばらしい！かんぺきです！！";
-        result.style.color = "green";
+        button.classList.add("wrong");
+        correctButton.classList.add("highlight");
       }
 
-      result.innerHTML = `${correctCount}もん せいかい。<br>${message}`;
+      document.getElementById("answerPlaceholder").textContent = correctAnswer;
+
+      setTimeout(() => {
+        if (questionCount >= 10) {
+          let message = `${correctCount}もん せいかい。`;
+          if (correctCount <= 5) {
+            message += " つぎも　がんばろう！";
+          } else if (correctCount <= 8) {
+            message += " なかなか　やりますね！";
+          } else if (correctCount === 9) {
+            message += " おしい、あと１もんでパーフェクト！";
+          } else {
+            message += " すばらしい！かんぺきです！！";
+          }
+          document.getElementById('problem').style.display = 'none';
+          document.getElementById('choices').style.display = 'none';
+          document.getElementById('result').textContent = message;
+        } else {
+          newQuestion();
+        }
+      }, 1000);
     }
 
-    generateQuestion();
+    newQuestion();
   </script>
-
 </body>
 </html>
+
