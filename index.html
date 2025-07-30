@@ -2,165 +2,126 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>たしざん ゲーム</title>
+  <title>足し算クイズ</title>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      background: #f0f8ff;
+      padding: 20px;
     }
-    #question {
-      font-size: 96px;
-      margin: 20px;
-    }
+
     .dots {
       font-size: 24px;
       margin: 10px;
-      white-space: pre-wrap;
+      text-align: center;
     }
-    .choice {
+
+    .dots-inner {
       display: inline-block;
-      margin: 10px;
+      text-align: left;
     }
-    button {
-      font-size: 36px;
-      padding: 10px 30px;
+
+    .dots-label {
+      font-size: 24px;
+      font-weight: bold;
+      margin-right: 10px;
+      display: inline-block;
+      vertical-align: top;
+    }
+
+    .choices button {
+      font-size: 20px;
       margin: 10px;
+      padding: 10px 20px;
       background-color: white;
-      border: 2px solid #ccc;
-      border-radius: 10px;
+      border: 2px solid black;
+      border-radius: 8px;
       cursor: pointer;
     }
-    button.correct {
-      background-color: #90ee90;
-    }
-    button.incorrect {
-      background-color: #f8c8dc;
-    }
-    #message {
-      font-size: 36px;
+
+    .feedback {
+      font-size: 24px;
       margin: 20px;
-      color: #333;
-    }
-    #progress {
-      width: 80%;
-      height: 30px;
-      margin: 20px auto;
-      background-color: #eee;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    #bar {
-      height: 100%;
-      width: 0%;
-      background-color: #4caf50;
+      height: 1.5em;
     }
   </style>
 </head>
 <body>
-  <h1>たしざん ゲーム</h1>
-  <div id="progress"><div id="bar"></div></div>
-  <div id="question"></div>
+  <h1>足し算クイズ</h1>
   <div id="dots1" class="dots"></div>
   <div id="dots2" class="dots"></div>
-  <div id="choices"></div>
-  <div id="message"></div>
+  <div class="choices" id="choices"></div>
+  <div class="feedback" id="feedback"></div>
 
-  <audio id="correctSound" src="correct.mp3" preload="auto"></audio>
+  <audio id="correct-sound" src="correct.mp3" preload="auto"></audio>
 
   <script>
     let correctAnswer;
-    let currentQuestion = 0;
-    let score = 0;
-    const totalQuestions = 10;
 
-    function generateDots(n) {
+    function generateDotsWithLabel(n) {
       const dot = '●';
       let dots = '';
       for (let i = 1; i <= n; i++) {
         dots += dot;
         if (i % 5 === 0 && i !== n) dots += ' ';
       }
-      return dots;
+
+      const container = document.createElement('div');
+      container.className = 'dots-inner';
+
+      const label = document.createElement('span');
+      label.className = 'dots-label';
+      label.textContent = n;
+
+      const dotSpan = document.createElement('span');
+      dotSpan.textContent = dots;
+
+      container.appendChild(label);
+      container.appendChild(dotSpan);
+
+      return container;
     }
 
     function nextQuestion() {
-      if (currentQuestion >= totalQuestions) {
-        showResult();
-        return;
-      }
-
-      document.getElementById("message").textContent = "";
-      document.getElementById("choices").innerHTML = "";
-
       const a = Math.floor(Math.random() * 9) + 1;
       const b = Math.floor(Math.random() * 9) + 1;
       correctAnswer = a + b;
-      currentQuestion++;
 
-      document.getElementById("question").textContent = `${a} ＋ ${b} ＝ ？`;
-      document.getElementById("dots1").textContent = generateDots(a);
-      document.getElementById("dots2").textContent = generateDots(b);
-      updateProgressBar();
+      const dots1 = document.getElementById("dots1");
+      const dots2 = document.getElementById("dots2");
+      dots1.innerHTML = "";
+      dots2.innerHTML = "";
+      dots1.appendChild(generateDotsWithLabel(a));
+      dots2.appendChild(generateDotsWithLabel(b));
 
-      const answers = new Set([correctAnswer]);
-      while (answers.size < 4) {
+      const choices = document.getElementById("choices");
+      choices.innerHTML = "";
+      const answers = [correctAnswer];
+      while (answers.length < 4) {
         let wrong = Math.floor(Math.random() * 17) + 2;
-        answers.add(wrong);
+        if (!answers.includes(wrong)) answers.push(wrong);
       }
-
-      const choices = Array.from(answers).sort(() => Math.random() - 0.5);
-      choices.forEach((num) => {
+      answers.sort(() => Math.random() - 0.5);
+      answers.forEach(n => {
         const btn = document.createElement("button");
-        btn.textContent = num;
-        btn.onclick = () => checkAnswer(btn, num);
-        document.getElementById("choices").appendChild(btn);
+        btn.textContent = n;
+        btn.onclick = () => checkAnswer(n);
+        choices.appendChild(btn);
       });
+
+      document.getElementById("feedback").textContent = "";
     }
 
-    function checkAnswer(button, selected) {
-      const buttons = document.querySelectorAll("button");
-      buttons.forEach(b => b.disabled = true);
-
-      const correctBtn = [...buttons].find(b => parseInt(b.textContent) === correctAnswer);
-      correctBtn.classList.add("correct");
-
-      if (selected === correctAnswer) {
-        score++;
-        button.classList.add("correct");
-        document.getElementById("message").textContent = "せいかい！";
-        document.getElementById("correctSound").play();
+    function checkAnswer(n) {
+      const feedback = document.getElementById("feedback");
+      if (n === correctAnswer) {
+        document.getElementById("correct-sound").play();
+        feedback.textContent = "せいかい！";
+        setTimeout(nextQuestion, 500);
       } else {
-        button.classList.add("incorrect");
-        document.getElementById("message").textContent = `ざんねん、せいかいは ${correctAnswer} です。`;
+        feedback.textContent = `ざんねん、せいかいは ${correctAnswer} です。`;
+        setTimeout(nextQuestion, 3000);
       }
-
-      setTimeout(nextQuestion, 1500);
-    }
-
-    function updateProgressBar() {
-      const bar = document.getElementById("bar");
-      bar.style.width = `${(currentQuestion / totalQuestions) * 100}%`;
-    }
-
-    function showResult() {
-      document.getElementById("question").textContent = "";
-      document.getElementById("dots1").textContent = "";
-      document.getElementById("dots2").textContent = "";
-      document.getElementById("choices").innerHTML = "";
-
-      let resultMsg = `${score}もん せいかい。`;
-      if (score <= 5) {
-        resultMsg += "\nつぎも　がんばろう！";
-      } else if (score <= 8) {
-        resultMsg += "\nなかなか　やりますね！";
-      } else if (score === 9) {
-        resultMsg += "\nおしい、あと1もんでパーフェクト！";
-      } else {
-        resultMsg += "\nすばらしい！かんぺきです！！";
-      }
-
-      document.getElementById("message").textContent = resultMsg;
     }
 
     nextQuestion();
