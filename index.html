@@ -3,206 +3,170 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>足し算クイズ</title>
+  <title>たしざんクイズ</title>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
       margin: 2em;
     }
-
-    #question {
+    h1 {
       font-size: 2em;
+    }
+    #question {
+      font-size: 3em;
       margin: 1em 0;
     }
-
-    .choices {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1em;
-      max-width: 300px;
+    .options button {
+      font-size: 2em;
+      margin: 0.5em;
+      padding: 0.5em 1em;
+      background-color: white;
+      border: 2px solid #555;
+      cursor: pointer;
+    }
+    .options button.correct {
+      background-color: #b8f5b1 !important;
+    }
+    .options button.wrong {
+      background-color: #f9c0c0 !important;
+    }
+    #visual-aid-container {
+      text-align: center;
       margin: 1em auto;
     }
-
-    .choice {
-      padding: 1em;
-      border: 2px solid #444;
-      background-color: white;
+    #visual-aid {
+      text-align: left;
+      font-size: 2em;
+      display: inline-block;
+    }
+    #feedback {
       font-size: 1.5em;
-      cursor: pointer;
-      border-radius: 0.5em;
-      transition: background-color 0.3s, color 0.3s;
+      margin-top: 1em;
     }
-
-    .choice.correct {
-      background-color: lightgreen;
-      color: black;
-    }
-
-    .choice.wrong {
-      background-color: lightcoral;
-      color: white;
-    }
-
-    #result {
-      margin-top: 2em;
-      font-size: 1.5em;
-    }
-
-    #progress-container {
+    #progress-bar {
       width: 100%;
       background-color: #ddd;
       height: 20px;
+      border-radius: 10px;
+      overflow: hidden;
       margin-bottom: 1em;
     }
-
-    #progress-bar {
+    #progress {
       height: 100%;
-      background-color: #4caf50;
       width: 0%;
-    }
-
-    #dots-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 1em;
-    }
-
-    .dots-block {
-      text-align: left;
-      font-size: 2em;
-      white-space: pre-wrap;
+      background-color: #4caf50;
+      transition: width 0.5s ease;
     }
   </style>
 </head>
 <body>
-  <h1>足し算クイズ</h1>
-
-  <div id="progress-container">
-    <div id="progress-bar"></div>
+  <h1>たしざんクイズ</h1>
+  <div id="progress-bar">
+    <div id="progress"></div>
   </div>
+  <div id="question"></div>
+  <div id="visual-aid-container"><div id="visual-aid"></div></div>
+  <div class="options"></div>
+  <div id="feedback"></div>
 
-  <div id="dots-container">
-    <div class="dots-block" id="dots-display"></div>
-  </div>
-
-  <div id="question">問題を読み込み中...</div>
-
-  <div class="choices" id="choices"></div>
-
-  <div id="result"></div>
-
-  <audio id="correct-sound" src="correct.mp3"></audio>
+  <audio id="correct-sound" src="correct.mp3" preload="auto"></audio>
 
   <script>
-    const TOTAL_QUESTIONS = 10;
+    const questionElement = document.getElementById("question");
+    const optionsContainer = document.querySelector(".options");
+    const feedbackElement = document.getElementById("feedback");
+    const progressElement = document.getElementById("progress");
+    const visualAidElement = document.getElementById("visual-aid");
+    const correctSound = document.getElementById("correct-sound");
+
     let currentQuestion = 0;
     let score = 0;
     let startTime;
 
-    function playSound(id) {
-      const audio = document.getElementById(id);
-      const clone = audio.cloneNode(); // 複製して重複再生に対応
-      clone.play();
-    }
+    const totalQuestions = 10;
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
+    function playSound() {
+      correctSound.currentTime = 0;
+      correctSound.play();
     }
 
     function generateQuestion() {
       const a = Math.floor(Math.random() * 9) + 1;
       const b = Math.floor(Math.random() * 9) + 1;
-      const answer = a + b;
-
-      updateDotsDisplay(a, b);
-
-      const choices = shuffle([
-        answer,
-        answer + 1 + Math.floor(Math.random() * 3),
-        answer - 1 - Math.floor(Math.random() * 2),
-        answer + 2 + Math.floor(Math.random() * 2),
-      ]);
-
-      document.getElementById("question").innerText = `${a} + ${b} = ?`;
-
-      const choicesDiv = document.getElementById("choices");
-      choicesDiv.innerHTML = "";
-
-      choices.forEach(choice => {
-        const btn = document.createElement("button");
-        btn.className = "choice";
-        btn.innerText = choice;
-        btn.onclick = () => handleAnswer(choice, answer, btn);
-        choicesDiv.appendChild(btn);
-      });
-
-      updateProgressBar();
-    }
-
-    function updateDotsDisplay(a, b) {
-      const dotsDisplay = document.getElementById("dots-display");
-
-      const makeDots = (n) => {
-        let dots = `${n} `;
-        for (let i = 1; i <= n; i++) {
-          dots += "●";
-          if (i % 5 === 0 && i !== n) dots += " ";
-        }
-        return dots;
-      };
-
-      const aDots = makeDots(a);
-      const bDots = makeDots(b);
-
-      dotsDisplay.innerText = `${aDots}\n${bDots}`;
-    }
-
-    function handleAnswer(selected, correct, btn) {
-      const buttons = document.querySelectorAll(".choice");
-      buttons.forEach(b => b.disabled = true);
-
-      if (selected === correct) {
-        btn.classList.add("correct");
-        playSound("correct-sound");
-        score++;
-      } else {
-        btn.classList.add("wrong");
+      const correctAnswer = a + b;
+      const answers = new Set([correctAnswer]);
+      while (answers.size < 4) {
+        const wrong = Math.floor(Math.random() * 17) + 2;
+        answers.add(wrong);
       }
 
-      setTimeout(() => {
-        currentQuestion++;
-        if (currentQuestion < TOTAL_QUESTIONS) {
-          generateQuestion();
-        } else {
-          showResult();
-        }
-      }, 800);
+      const shuffled = Array.from(answers).sort(() => Math.random() - 0.5);
+
+      questionElement.textContent = `${a} ＋ ${b} ＝ ?`;
+      visualAidElement.innerHTML =
+        `${a}　${"●".repeat(a).replace(/(.{5})/g, "$1 ")}<br>${b}　${"●".repeat(b).replace(/(.{5})/g, "$1 ")}`;
+      optionsContainer.innerHTML = "";
+      feedbackElement.textContent = "";
+
+      shuffled.forEach((num) => {
+        const btn = document.createElement("button");
+        btn.textContent = num;
+        btn.addEventListener("click", () => {
+          const isCorrect = num === correctAnswer;
+          if (isCorrect) {
+            btn.classList.add("correct");
+            playSound();
+            feedbackElement.textContent = "せいかい！";
+            score++;
+            setTimeout(() => nextQuestion(), 500);
+          } else {
+            btn.classList.add("wrong");
+            [...optionsContainer.children].forEach((b) => {
+              if (parseInt(b.textContent) === correctAnswer) {
+                b.classList.add("correct");
+              }
+            });
+            feedbackElement.textContent = `ざんねん、せいかいは ${correctAnswer} です。`;
+            setTimeout(() => nextQuestion(), 3000);
+          }
+        });
+        optionsContainer.appendChild(btn);
+      });
     }
 
-    function updateProgressBar() {
-      const bar = document.getElementById("progress-bar");
-      bar.style.width = `${(currentQuestion / TOTAL_QUESTIONS) * 100}%`;
+    function nextQuestion() {
+      currentQuestion++;
+      updateProgress();
+      if (currentQuestion < totalQuestions) {
+        generateQuestion();
+      } else {
+        showResult();
+      }
+    }
+
+    function updateProgress() {
+      const percent = Math.round((currentQuestion / totalQuestions) * 100);
+      progressElement.style.width = percent + "%";
     }
 
     function showResult() {
-      const endTime = Date.now();
-      const duration = Math.round((endTime - startTime) / 1000);
-      document.getElementById("question").innerText = "終了！";
-      document.getElementById("choices").innerHTML = "";
-      document.getElementById("dots-display").innerText = "";
-      document.getElementById("progress-bar").style.width = "100%";
-      document.getElementById("result").innerHTML = `せいかい：${score} / ${TOTAL_QUESTIONS}<br>かかったじかん・・・${duration}びょう`;
+      const timeTaken = Math.round((Date.now() - startTime) / 1000);
+      questionElement.textContent = "";
+      optionsContainer.innerHTML = "";
+      visualAidElement.innerHTML = "";
+      feedbackElement.innerHTML = `せいかいすう：${score} / ${totalQuestions}<br>かかったじかん・・・${timeTaken}びょう`;
     }
 
-    window.onload = () => {
+    function startQuiz() {
+      score = 0;
+      currentQuestion = 0;
       startTime = Date.now();
+      updateProgress();
       generateQuestion();
-    };
+    }
+
+    startQuiz();
   </script>
 </body>
 </html>
